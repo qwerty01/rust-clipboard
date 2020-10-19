@@ -14,15 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+use crate::{Error, Result};
 use common::*;
-use objc::runtime::{Object, Class};
-use objc_foundation::{INSArray, INSString, INSObject};
-use objc_foundation::{NSArray, NSDictionary, NSString, NSObject};
+use objc::runtime::{Class, Object};
+use objc_foundation::{INSArray, INSObject, INSString};
+use objc_foundation::{NSArray, NSDictionary, NSObject, NSString};
 use objc_id::{Id, Owned};
 use std::error;
-use std::mem::transmute;
 use std::fmt;
-use crate::{Error, Result};
+use std::mem::transmute;
 
 pub struct OSXClipboardContext {
     pasteboard: Id<Object>,
@@ -44,10 +44,10 @@ impl fmt::Display for OSXError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match self {
             Self::PasteWriteObjectsError => "Could not paste objects to clipboard",
-            Self::ReadObjectsForClassesEmpty => "Clipboard is empty"
+            Self::ReadObjectsForClassesEmpty => "Clipboard is empty",
             Self::ReadObjectsForClassesNull => "No objects to read",
             Self::PasteboardNotFound => "Pasteboard not found",
-            Self::NullPasteboard => "General pasteboard not found"
+            Self::NullPasteboard => "General pasteboard not found",
         };
         write!(f, "{}", msg)
     }
@@ -67,7 +67,9 @@ impl ClipboardProvider for OSXClipboardContext {
             return Err(OSXError::NullPasteboard);
         }
         let pasteboard: Id<Object> = unsafe { Id::from_ptr(pasteboard) };
-        Ok(OSXClipboardContext { pasteboard: pasteboard })
+        Ok(OSXClipboardContext {
+            pasteboard: pasteboard,
+        })
     }
     fn get_contents(&mut self) -> Result<String> {
         let string_class: Id<NSObject> = {
@@ -93,7 +95,7 @@ impl ClipboardProvider for OSXClipboardContext {
     fn set_contents(&mut self, data: String) -> Result<()> {
         let string_array = NSArray::from_vec(vec![NSString::from_str(&data)]);
         let _: usize = unsafe { msg_send![self.pasteboard, clearContents] };
-        let success: bool = unsafe { msg_send![self.pasteboard, writeObjects:string_array] };
+        let success: bool = unsafe { msg_send![self.pasteboard, writeObjects: string_array] };
         return if success {
             Ok(())
         } else {

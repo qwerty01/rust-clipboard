@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+use crate::{Error, Result};
 use common::ClipboardProvider;
 use std::error;
 use std::fmt;
-use crate::{Error, Result};
 
 pub struct NopClipboardContext;
 
@@ -28,7 +28,7 @@ pub enum NopError {
 impl fmt::Display for NopError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::NopError => write!(f, "This platform is not supported")
+            Self::NopError => write!(f, "This platform is not supported"),
         }
     }
 }
@@ -38,7 +38,6 @@ impl Into<Error> for NopError {
         Error::NopError(self)
     }
 }
-
 
 impl ClipboardProvider for NopClipboardContext {
     fn new() -> Result<NopClipboardContext> {

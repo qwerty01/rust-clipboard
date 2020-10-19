@@ -14,16 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+use crate::{Error, Result};
+use common::*;
 use std::error;
 use std::fmt;
-use std::time::Duration;
 use std::marker::PhantomData;
-use common::*;
+use std::string::FromUtf8Error;
+use std::time::Duration;
+use x11_clipboard_crate::xcb::xproto::Atom;
 use x11_clipboard_crate::Atoms;
 use x11_clipboard_crate::Clipboard as X11Clipboard;
-use x11_clipboard_crate::xcb::xproto::Atom;
-use crate::{Error, Result};
-use std::string::FromUtf8Error;
 
 pub trait Selection {
     fn atom(atoms: &Atoms) -> Atom;
@@ -95,35 +95,44 @@ where
     S: Selection,
 {
     fn new() -> Result<X11ClipboardContext<S>> {
-        Ok(X11ClipboardContext(match X11Clipboard::new() {
-            Ok(c) => c,
-            Err(e) => return Err(Error::X11Error(X11Error::ClipboardError(e))),
-        }, PhantomData))
+        Ok(X11ClipboardContext(
+            match X11Clipboard::new() {
+                Ok(c) => c,
+                Err(e) => return Err(Error::X11Error(X11Error::ClipboardError(e))),
+            },
+            PhantomData,
+        ))
     }
 
     fn get_contents(&mut self) -> Result<String> {
-        Ok(match String::from_utf8(match self.0.load(
-            S::atom(&self.0.getter.atoms),
-            self.0.getter.atoms.utf8_string,
-            self.0.getter.atoms.property,
-            Duration::from_secs(3),
-        ) {
-            Ok(l) => l,
-            Err(e) => return Err(Error::X11Error(X11Error::ClipboardError(e))),
-        }) {
-            Ok(s) => s,
-            Err(e) => return Err(Error::X11Error(X11Error::FromUtf8Error(e))),
-        })
+        Ok(
+            match String::from_utf8(
+                match self.0.load(
+                    S::atom(&self.0.getter.atoms),
+                    self.0.getter.atoms.utf8_string,
+                    self.0.getter.atoms.property,
+                    Duration::from_secs(3),
+                ) {
+                    Ok(l) => l,
+                    Err(e) => return Err(Error::X11Error(X11Error::ClipboardError(e))),
+                },
+            ) {
+                Ok(s) => s,
+                Err(e) => return Err(Error::X11Error(X11Error::FromUtf8Error(e))),
+            },
+        )
     }
 
     fn set_contents(&mut self, data: String) -> Result<()> {
-        Ok(match self.0.store(
-            S::atom(&self.0.setter.atoms),
-            self.0.setter.atoms.utf8_string,
-            data,
-        ) {
-            Ok(s) => s,
-            Err(e) => return Err(Error::X11Error(X11Error::ClipboardError(e))),
-        })
+        Ok(
+            match self.0.store(
+                S::atom(&self.0.setter.atoms),
+                self.0.setter.atoms.utf8_string,
+                data,
+            ) {
+                Ok(s) => s,
+                Err(e) => return Err(Error::X11Error(X11Error::ClipboardError(e))),
+            },
+        )
     }
 }

@@ -16,22 +16,22 @@ limitations under the License.
 
 use clipboard_win::{get_clipboard_string, set_clipboard_string};
 
+use crate::{Error, Result};
 use common::ClipboardProvider;
 use std::error;
-use std::io;
 use std::fmt;
-use crate::{Error, Result};
+use std::io;
 
 pub struct WindowsClipboardContext;
 
 #[derive(Debug)]
 pub enum WindowsError {
-    IoError(io::Error)
+    IoError(io::Error),
 }
 impl fmt::Display for WindowsError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::IoError(e) => e.fmt(f)
+            Self::IoError(e) => e.fmt(f),
         }
     }
 }
@@ -54,13 +54,13 @@ impl ClipboardProvider for WindowsClipboardContext {
     fn get_contents(&mut self) -> Result<String> {
         Ok(match get_clipboard_string() {
             Ok(c) => c,
-            Err(e) => return Err(Error::WindowsError(WindowsError::IoError(e)))
+            Err(e) => return Err(Error::WindowsError(WindowsError::IoError(e))),
         })
     }
     fn set_contents(&mut self, data: String) -> Result<()> {
         Ok(match set_clipboard_string(&data) {
             Ok(c) => c,
-            Err(e) => return Err(Error::WindowsError(WindowsError::IoError(e)))
+            Err(e) => return Err(Error::WindowsError(WindowsError::IoError(e))),
         })
     }
 }

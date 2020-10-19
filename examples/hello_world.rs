@@ -1,7 +1,7 @@
 extern crate clipboard;
 
-use clipboard::ClipboardProvider;
 use clipboard::ClipboardContext;
+use clipboard::ClipboardProvider;
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {

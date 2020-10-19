@@ -1,9 +1,9 @@
 extern crate clipboard;
 
-use std::error::Error;
-use clipboard::ClipboardProvider;
 #[cfg(target_os = "linux")]
-use clipboard::x11_clipboard::{X11ClipboardContext, Primary};
+use clipboard::x11_clipboard::{Primary, X11ClipboardContext};
+use clipboard::ClipboardProvider;
+use std::error::Error;
 
 #[cfg(target_os = "linux")]
 fn main() -> Result<(), Box<dyn Error>> {
