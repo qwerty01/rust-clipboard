@@ -14,10 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+
 #![crate_name = "clipboard"]
 #![crate_type = "lib"]
 #![crate_type = "dylib"]
 #![crate_type = "rlib"]
+
+use std::error;
+use std::fmt;
+use std::result;
+
+#[cfg(target_os="macos")]
+use osx_clipboard::OSXError;
+
 
 #[cfg(all(unix, not(any(target_os="macos", target_os="android", target_os="emscripten"))))]
 extern crate x11_clipboard as x11_clipboard_crate;
@@ -57,6 +66,36 @@ pub type ClipboardContext = osx_clipboard::OSXClipboardContext;
 pub type ClipboardContext = nop_clipboard::NopClipboardContext; // TODO: implement AndroidClipboardContext (see #52)
 #[cfg(not(any(unix, windows, target_os="macos", target_os="android", target_os="emscripten")))]
 pub type ClipboardContext = nop_clipboard::NopClipboardContext;
+
+#[derive(Debug)]
+pub enum Error {
+    #[cfg(all(unix, not(any(target_os="macos", target_os="android", target_os="emscripten"))))]
+    X11Error(x11_clipboard::X11Error),
+    #[cfg(target_os="macos")]
+    OSXError(OSXError),
+    #[cfg(windows)]
+    WindowsError(windows_clipboard::WindowsError),
+    // TODO: create AndroidError type when AndroidClipboardContext is created
+    NopError(nop_clipboard::NopError),
+}
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            #[cfg(all(unix, not(any(target_os="macos", target_os="android", target_os="emscripten"))))]
+            Self::X11Error(e) => e.fmt(f),
+            #[cfg(target_os="macos")]
+            Self::OSXError(e) => e.fmt(f),
+            #[cfg(windows)]
+            Self::WindowsError(e) => e.fmt(f),
+            // TODO: create AndroidError type when AndroidClipboardContext is created
+            Self::NopError(e) => e.fmt(f),
+        }
+    }
+}
+impl error::Error for Error {}
+
+pub type Result<T> = result::Result<T, Error>;
+
 
 #[test]
 fn test_clipboard() {

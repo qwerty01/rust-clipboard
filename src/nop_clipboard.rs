@@ -15,22 +15,39 @@ limitations under the License.
 */
 
 use common::ClipboardProvider;
-use std::error::Error;
+use std::error;
+use std::fmt;
+use crate::{Error, Result};
 
 pub struct NopClipboardContext;
 
+#[derive(Debug)]
+pub enum NopError {
+    NopError,
+}
+impl fmt::Display for NopError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::NopError => write!(f, "This platform is not supported")
+        }
+    }
+}
+impl error::Error for NopError {}
+impl Into<Error> for NopError {
+    fn into(self) -> Error {
+        Error::NopError(self)
+    }
+}
+
+
 impl ClipboardProvider for NopClipboardContext {
-    fn new() -> Result<NopClipboardContext, Box<Error>> {
+    fn new() -> Result<NopClipboardContext> {
         Ok(NopClipboardContext)
     }
-    fn get_contents(&mut self) -> Result<String, Box<Error>> {
-        println!("Attempting to get the contents of the clipboard, which hasn't yet been \
-                  implemented on this platform.");
-        Ok("".to_string())
+    fn get_contents(&mut self) -> Result<String> {
+        Err(Error::NopError(NopError::NopError))
     }
-    fn set_contents(&mut self, _: String) -> Result<(), Box<Error>> {
-        println!("Attempting to set the contents of the clipboard, which hasn't yet been \
-                  implemented on this platform.");
-        Ok(())
+    fn set_contents(&mut self, _: String) -> Result<()> {
+        Err(Error::NopError(NopError::NopError))
     }
 }

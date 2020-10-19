@@ -14,13 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use std::error::Error;
+use std::error;
+use std::fmt;
 use std::time::Duration;
 use std::marker::PhantomData;
 use common::*;
 use x11_clipboard_crate::Atoms;
 use x11_clipboard_crate::Clipboard as X11Clipboard;
 use x11_clipboard_crate::xcb::xproto::Atom;
+use crate::{Error, Result};
+use std::string::FromUtf8Error;
 
 pub trait Selection {
     fn atom(atoms: &Atoms) -> Atom;
@@ -42,6 +45,46 @@ impl Selection for Clipboard {
     }
 }
 
+#[derive(Debug)]
+pub enum X11Error {
+    FromUTF8Error(FromUTF8Error),
+    ClipboardError(x11_clipboard_crate::error::Error),
+}
+impl fmt::Display for X11Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match X11Error {
+            Self::FromUTF8Error(e) => e.fmt(f),
+            Self::ClipboardError(e) => e.fmt(f),
+        }
+    }
+}
+impl Into<Error> for X11Error {
+    fn into(self) -> Error {
+        Error::X11Error(self)
+    }
+}
+impl From<FromUTF8Error> for X11Error {
+    fn from(e: FromUTF8Error) -> Self {
+        Self::FromUTF8Error(e)
+    }
+}
+impl From<x11_clipboard_crate::error::Error> for X11Error {
+    fn from(e: x11_clipboard_crate::error::Error) -> Self {
+        X11Error::ClipboardError(e)
+    }
+}
+
+impl Into<Error> for FromUTF8Error> {
+    fn into(self) -> Error {
+        Error::X11Error(X11Error::FromUTF8Error(self))
+    }
+}
+impl Into<Error> for x11_clipboard_crate::error::Error {
+    fn into(self) -> Error {
+        Error::X11Error(X11Error::ClipboardError(self))
+    }
+}
+
 pub struct X11ClipboardContext<S = Clipboard>(X11Clipboard, PhantomData<S>)
 where
     S: Selection;
@@ -50,11 +93,11 @@ impl<S> ClipboardProvider for X11ClipboardContext<S>
 where
     S: Selection,
 {
-    fn new() -> Result<X11ClipboardContext<S>, Box<Error>> {
+    fn new() -> Result<X11ClipboardContext<S>> {
         Ok(X11ClipboardContext(X11Clipboard::new()?, PhantomData))
     }
 
-    fn get_contents(&mut self) -> Result<String, Box<Error>> {
+    fn get_contents(&mut self) -> Result<String> {
         Ok(String::from_utf8(self.0.load(
             S::atom(&self.0.getter.atoms),
             self.0.getter.atoms.utf8_string,
@@ -63,7 +106,7 @@ where
         )?)?)
     }
 
-    fn set_contents(&mut self, data: String) -> Result<(), Box<Error>> {
+    fn set_contents(&mut self, data: String) -> Result<()> {
         Ok(self.0.store(
             S::atom(&self.0.setter.atoms),
             self.0.setter.atoms.utf8_string,

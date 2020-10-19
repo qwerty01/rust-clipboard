@@ -19,8 +19,10 @@ use objc::runtime::{Object, Class};
 use objc_foundation::{INSArray, INSString, INSObject};
 use objc_foundation::{NSArray, NSDictionary, NSString, NSObject};
 use objc_id::{Id, Owned};
-use std::error::Error;
+use std::error;
 use std::mem::transmute;
+use std::fmt;
+use crate::{Error, Result};
 
 pub struct OSXClipboardContext {
     pasteboard: Id<Object>,
@@ -30,17 +32,44 @@ pub struct OSXClipboardContext {
 #[link(name = "AppKit", kind = "framework")]
 extern "C" {}
 
+#[derive(Debug)]
+pub enum OSXError {
+    PasteWriteObjectsError,
+    ReadObjectsForClassesEmpty,
+    ReadObjectsForClassesNull,
+    PasteboardNotFound,
+    NullPasteboard,
+}
+impl fmt::Display for OSXError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let msg = match self {
+            Self::PasteWriteObjectsError => "Could not paste objects to clipboard",
+            Self::ReadObjectsForClassesEmpty => "Clipboard is empty"
+            Self::ReadObjectsForClassesNull => "No objects to read",
+            Self::PasteboardNotFound => "Pasteboard not found",
+            Self::NullPasteboard => "General pasteboard not found"
+        };
+        write!(f, "{}", msg)
+    }
+}
+impl error::Error for OSXError {}
+impl Into<Error> for OSXError {
+    fn into(self) -> Error {
+        Error::OSXError(self)
+    }
+}
+
 impl ClipboardProvider for OSXClipboardContext {
-    fn new() -> Result<OSXClipboardContext, Box<Error>> {
-        let cls = try!(Class::get("NSPasteboard").ok_or(err("Class::get(\"NSPasteboard\")")));
+    fn new() -> Result<OSXClipboardContext> {
+        let cls = try!(Class::get("NSPasteboard").ok_or(OSXError::PasteboardNotFound)?);
         let pasteboard: *mut Object = unsafe { msg_send![cls, generalPasteboard] };
         if pasteboard.is_null() {
-            return Err(err("NSPasteboard#generalPasteboard returned null"));
+            return Err(OSXError::NullPasteboard);
         }
         let pasteboard: Id<Object> = unsafe { Id::from_ptr(pasteboard) };
         Ok(OSXClipboardContext { pasteboard: pasteboard })
     }
-    fn get_contents(&mut self) -> Result<String, Box<Error>> {
+    fn get_contents(&mut self) -> Result<String> {
         let string_class: Id<NSObject> = {
             let cls: Id<Class> = unsafe { Id::from_ptr(class("NSString")) };
             unsafe { transmute(cls) }
@@ -51,24 +80,24 @@ impl ClipboardProvider for OSXClipboardContext {
             let obj: *mut NSArray<NSString> =
                 msg_send![self.pasteboard, readObjectsForClasses:&*classes options:&*options];
             if obj.is_null() {
-                return Err(err("pasteboard#readObjectsForClasses:options: returned null"));
+                return Err(OSXError::ReadObjectsForClassesNull);
             }
             Id::from_ptr(obj)
         };
         if string_array.count() == 0 {
-            Err(err("pasteboard#readObjectsForClasses:options: returned empty"))
+            Err(OSXError::ReadObjectsForClassesEmpty)
         } else {
             Ok(string_array[0].as_str().to_owned())
         }
     }
-    fn set_contents(&mut self, data: String) -> Result<(), Box<Error>> {
+    fn set_contents(&mut self, data: String) -> Result<()> {
         let string_array = NSArray::from_vec(vec![NSString::from_str(&data)]);
         let _: usize = unsafe { msg_send![self.pasteboard, clearContents] };
         let success: bool = unsafe { msg_send![self.pasteboard, writeObjects:string_array] };
         return if success {
             Ok(())
         } else {
-            Err(err("NSPasteboard#writeObjects: returned false"))
+            Err(OSXError::PasteWriteObjectsError)
         };
     }
 }
