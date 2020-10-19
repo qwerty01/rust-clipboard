@@ -58,6 +58,7 @@ impl fmt::Display for X11Error {
         }
     }
 }
+impl error::Error for X11Error {}
 impl Into<Error> for X11Error {
     fn into(self) -> Error {
         Error::X11Error(self)
@@ -74,7 +75,7 @@ impl From<x11_clipboard_crate::error::Error> for X11Error {
     }
 }
 
-impl Into<Error> for FromUtf8Error> {
+impl Into<Error> for FromUtf8Error {
     fn into(self) -> Error {
         Error::X11Error(X11Error::FromUtf8Error(self))
     }
